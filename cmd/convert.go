@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/csv"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -14,41 +15,44 @@ import (
 	"github.com/spf13/viper"
 )
 
-// CsvConfig is
+// CsvConfig is the config for parsing the csv file
+// TODO: move this to internal package
 type CsvConfig struct {
-	AmountIn          int
-	AmountOut         int
-	Currency          string
-	Date              int
-	DateLayoutIn      string
-	DateLayoutOut     string
+	AmountIn          int    // The amount in field index
+	AmountOut         int    // The amount out field index
+	Currency          string // The currency to use
+	Date              int    // The date field index
+	DateLayoutIn      string // The parsing format
+	DateLayoutOut     string // The date output format
 	DefaultAccount    string // The default account for transactions if no rule matches
-	Description       int
-	Fields            int // Validate no. of fields; -1 is no check, 0 is infer from first row, and > 0 is explicit length
-	Payee             int
+	Description       int    // The description field index
+	Fields            int    // Validate no. of fields; -1 is no check, 0 is infer from first row, and > 0 is explicit length
+	Payee             int    // The payee field index
 	ProcessingAccount string // The account this export/CSV pertains to
-	Separator         rune
-	Skip              int
+	Separator         rune   // The csv file separator
+	Skip              int    // The number of csv rows to skip, excluding blank lines
 }
 
 // Config represents the config
+// TODO: move this to internal package
 type Config struct {
 	Csv               CsvConfig
 	TransactionsRules map[string]map[string]string
 }
 
 // Record represents a financial transaction record
+// TODO: move this to internal package
 type Record struct {
-	AccountIn   string
-	AccountOut  string
-	AmountIn    string
-	AmountOut   string
-	Comment     string
-	Currency    string
-	Date        string
-	Description string
-	Payee       string
-	Raw         string
+	AccountIn   string // The account in
+	AccountOut  string // The acocunt out
+	AmountIn    string // The amount in
+	AmountOut   string // The amount out
+	Comment     string // The comment, if provided
+	Currency    string // The currency
+	Date        string // The date
+	Description string // The description, if present
+	Payee       string // The payee
+	Raw         string // The raw csv record
 }
 
 // convertCmd represents the convert command
@@ -67,6 +71,7 @@ the file, then uses a template to transform that data and render it to stdout.`,
 	},
 }
 
+// TODO: move this to internal package
 func getConfig() Config {
 	return Config{
 		Csv: CsvConfig{
@@ -88,6 +93,7 @@ func getConfig() Config {
 	}
 }
 
+// TODO: move this to internal package
 func getTransactionsRules(keys map[string]string) (rules map[string]map[string]string) {
 	rules = make(map[string]map[string]string)
 
@@ -98,6 +104,7 @@ func getTransactionsRules(keys map[string]string) (rules map[string]map[string]s
 	return rules
 }
 
+// TODO: move this to internal package
 func processCsvFile(targetFile string, config Config) {
 	f, _ := os.Open(targetFile)
 
@@ -114,9 +121,10 @@ func processCsvFile(targetFile string, config Config) {
 
 	for {
 		record, err := r.Read()
+
+		// Skip any lines requested
 		if skip > 0 {
 			skip = skip - 1
-			// fmt.Println("skipping record, skip is:", skip)
 
 			if skip == 0 {
 				r.FieldsPerRecord = config.Csv.Fields
@@ -125,16 +133,22 @@ func processCsvFile(targetFile string, config Config) {
 			continue
 		}
 
-		// TODO : handle EOF error gracefully
-		if err != nil {
-			log.Fatal(err)
+		// Check for errors
+		switch err {
+		case nil:
+		case io.EOF:
 			break
+		default:
+			log.WithFields(log.Fields{
+				"error": err,
+			}).Fatal("error while reading csv file")
 		}
 
 		parseCsvRecord(record, config)
 	}
 }
 
+// TODO: move this to internal package
 func parseCsvRecord(record []string, config Config) {
 	const recordTemplate = `{{.Date}} * "{{.Payee}}" "{{.Description}}"
   ; {{ .Raw }}
@@ -156,30 +170,25 @@ func parseCsvRecord(record []string, config Config) {
 	}
 }
 
+// TODO: move this to internal package
 func formatRecord(record []string, config Config) Record {
 	var accountIn, accountOut, amountIn, amountOut, comment, currency, date, description, payee, raw string
 
-	// date = record[config.Csv.Date]
 	t, err := time.Parse(config.Csv.DateLayoutIn, record[config.Csv.Date])
 	if err != nil {
-		fmt.Println("Error parsing date: ", err)
+		log.WithFields(log.Fields{
+			"config.Csv.DateLayoutIn": config.Csv.DateLayoutIn,
+			"record[config.Csv.Date]": record[config.Csv.Date],
+			"error":                   err,
+		}).Warn("error parsing date")
 	}
 
 	date = fmt.Sprintf(t.Format(config.Csv.DateLayoutOut))
-	// date = record[config.Csv.Date]
 
 	payee = record[config.Csv.Payee]
 	currency = config.Csv.Currency
 	description = record[config.Csv.Description]
 	raw = fmt.Sprintf("%#v", record)
-
-	// TODO : check for conf amountIn != amountOut
-	//   in this case lets figure out if it's a debit or a credit
-	//   and convert it to a formatted single value to have a single
-	//   consistent code path below. So to summarise, if in and out
-	//   aren't the same field, then convert the value to a positive
-	//   or negative equivalent value and let the first block below
-	//   handle all types of transactions for us
 
 	var amount string
 
@@ -214,50 +223,6 @@ func formatRecord(record []string, config Config) Record {
 		checkRules(config, payee, description, &accountOut, &comment)
 	}
 
-	// if config.Csv.AmountIn == config.Csv.AmountOut {
-	// 	amount = formatAmount(record[config.Csv.AmountIn])
-
-	// 	// we have to check the amount sign to determine the transaction type
-	// 	if regexp.MustCompile(`^-`).Match([]byte(amount)) {
-	// 		// it's a debit
-	// 		amountOut = amount
-	// 		amountIn = strings.ReplaceAll(amount, "-", "")
-	// 		accountOut = config.Csv.ProcessingAccount
-	// 		accountIn = config.Csv.DefaultAccount
-
-	// 		checkRules(config, payee, description, &accountIn, &comment)
-	// 	} else {
-	// 		// it's a credit
-	// 		amountIn = amount
-	// 		amountOut = fmt.Sprintf("-%s", amount)
-
-	// 		accountIn = config.Csv.ProcessingAccount
-	// 		accountOut = config.Csv.DefaultAccount
-
-	// 		checkRules(config, payee, description, &accountOut, &comment)
-	// 	}
-	// } else {
-	// 	// handle explicity amountIn and amountOut case
-	// 	if record[config.Csv.AmountIn] != "" {
-	// 		// it's a credit
-	// 		amountIn = formatAmount(record[config.Csv.AmountIn])
-	// 		amountOut = fmt.Sprintf("-%s", record[config.Csv.AmountIn])
-
-	// 		accountIn = config.Csv.ProcessingAccount
-	// 		accountOut = config.Csv.DefaultAccount
-
-	// 		checkRules(config, payee, description, &accountOut, &comment)
-	// 	} else {
-	// 		// it's a debit
-	// 		amountOut = formatAmount(record[config.Csv.AmountOut])
-	// 		amountIn = fmt.Sprintf("-%s", amountOut)
-	// 		accountOut = config.Csv.ProcessingAccount
-	// 		accountIn = config.Csv.DefaultAccount
-
-	// 		checkRules(config, payee, description, &accountIn, &comment)
-	// 	}
-	// }
-
 	return Record{
 		AccountIn:   accountIn,
 		AccountOut:  accountOut,
@@ -272,6 +237,7 @@ func formatRecord(record []string, config Config) Record {
 	}
 }
 
+// TODO: move this to internal package
 func checkRules(config Config, payee, description string, account, comment *string) {
 	for key := range config.TransactionsRules {
 		log.WithFields(log.Fields{
@@ -288,12 +254,14 @@ func checkRules(config Config, payee, description string, account, comment *stri
 	}
 }
 
+// TODO: move this to internal package
 func applyRuleSetting(setting string, value *string) {
 	if setting != "" {
 		*value = setting
 	}
 }
 
+// TODO: move this to internal package
 func checkRule(expression, str string) bool {
 	if expression == "" {
 		// empty expressions will always match, so skip them
@@ -316,6 +284,7 @@ func checkRule(expression, str string) bool {
 	return false
 }
 
+// TODO: move this to internal package
 func formatAmount(val string) string {
 	// comma as the decimal separator
 	if regexp.MustCompile(`,\d{2}$`).Match([]byte(val)) {
