@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/cewood/csv2beancount/internal"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var tplFile string
 
 // convertCmd represents the convert command
 var convertCmd = &cobra.Command{
@@ -19,7 +23,16 @@ This command does not alter any data in the file you provide, it simply reads
 the file, then uses a template to transform that data and render it to stdout.`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		internal.ProcessCsvFile(args[0], internal.GetConfig())
+		file, err := os.Open(args[0])
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"error": err,
+				"file":  args[0],
+			}).Fatal("error opening file")
+		}
+
+		internal.ProcessCsvFile(file, internal.GetConfig(), internal.GetTemplate(tplFile))
 	},
 }
 
@@ -37,6 +50,8 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// convertCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	convertCmd.PersistentFlags().StringVar(&tplFile, "template", "", "custom template file (to override the internal default one)")
 }
 
 // Typically this is in the root command, but since we don't actually
@@ -45,23 +60,7 @@ func init() {
 //
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		viper.AddConfigPath(".")
-	}
-
-	// Set config defaults
-	viper.SetDefault("csv.default_account", "Expenses:Unknown")
-	viper.SetDefault("csv.processing_account", "Assets:Unknown")
-	viper.SetDefault("csv.date_layout_out", "2006-01-02")
-	viper.SetDefault("csv.separator", ";")
-	viper.SetDefault("csv.skip", "0")
-
-	viper.AutomaticEnv() // read in environment variables that match
+	internal.SetViperDefaults(cfgFile)
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

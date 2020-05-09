@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -20,10 +21,10 @@ type Config struct {
 	TransactionsRules TransactionsRulesConfig
 }
 
-// TransactionsRulesConfig ...
+// TransactionsRulesConfig is a map of TransactionRule objects
 type TransactionsRulesConfig map[string]TransactionRule
 
-// TransactionRule ...
+// TransactionRule is a set of values to match records with and update their values from
 type TransactionRule struct {
 	SetAccount       string
 	SetComment       string
@@ -62,47 +63,111 @@ type Record struct {
 	Raw         string // The raw csv record
 }
 
-// ProcessCsvFile ...
-func ProcessCsvFile(targetFile string, config Config) {
-	f, _ := os.Open(targetFile)
+// RecordTemplate is the default template for formatting records
+const RecordTemplate = `{{.Date}} * "{{.Payee}}" "{{.Description}}"
+  ; {{ .Raw }}
+  {{.AccountOut}}  {{.Currency}} {{.AmountOut}}
+  {{.AccountIn}}   {{.Currency}} {{.AmountIn}}
 
-	r := csv.NewReader(f)
+`
 
-	r.Comma = config.Csv.Separator
+// GetTemplate ...
+func GetTemplate(file string) string {
+	if file == "" {
+		return RecordTemplate
+	}
+
+	tpl, err := ioutil.ReadFile(file)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"file":  file,
+			"error": err,
+		}).Debug("error reading template file")
+
+		return RecordTemplate
+	}
+
+	tplString := string(tpl)
+
+	if _, err := template.New("tpl").Parse(tplString); err == nil {
+		return tplString
+	}
+
+	return RecordTemplate
+}
+
+// getCsvReader ...
+func getCsvReader(file io.Reader, skip int, sep rune, fields int) *csv.Reader {
+	r := csv.NewReader(file)
+
+	r.Comma = sep
 
 	// Force this setting initially, after skipping any records it's
-	//  updated with the user provided value or the default of 0
+	//  updated with the user provided value or the default of 0.
 	r.FieldsPerRecord = -1
 
 	// Lines to skip at beginng of file, not including blank lines
-	skip := config.Csv.Skip
+	for skip > 0 {
+		if record, err := r.Read(); err != nil {
+			log.WithFields(log.Fields{
+				"record": record,
+				"error":  err,
+			}).Trace("skipped line returned error")
+		}
+		skip = skip - 1
+	}
 
+	r.FieldsPerRecord = fields
+
+	return r
+}
+
+// SetViperDefaults ...
+func SetViperDefaults(cfgFile string) {
+	if cfgFile != "" {
+		// Use config file from the flag.
+		viper.SetConfigFile(cfgFile)
+	} else {
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath(".")
+	}
+
+	// Set config defaults
+	viper.SetDefault("csv.default_account", "Expenses:Unknown")
+	viper.SetDefault("csv.processing_account", "Assets:Unknown")
+	viper.SetDefault("csv.date_layout_out", "2006-01-02")
+	viper.SetDefault("csv.separator", ";")
+	viper.SetDefault("csv.skip", "0")
+
+	viper.AutomaticEnv() // read in environment variables that match
+}
+
+// ProcessCsvFile ...
+func ProcessCsvFile(file io.Reader, config Config, template string) {
+	r := getCsvReader(file, config.Csv.Skip, config.Csv.Separator, config.Csv.Fields)
+
+L:
 	for {
 		record, err := r.Read()
 
-		// Skip any lines requested
-		if skip > 0 {
-			skip = skip - 1
-
-			if skip == 0 {
-				r.FieldsPerRecord = config.Csv.Fields
-			}
-
-			continue
-		}
+		log.WithFields(log.Fields{
+			"record": record,
+			"error":  err,
+		}).Trace("processing a csv record")
 
 		// Check for errors
 		switch err {
 		case nil:
 		case io.EOF:
-			break
+			break L
 		default:
 			log.WithFields(log.Fields{
 				"error": err,
 			}).Fatal("error while reading csv file")
 		}
 
-		parseCsvRecord(record, config)
+		parseCsvRecord(record, config, template, os.Stdout)
 	}
 }
 
@@ -134,7 +199,6 @@ func getTransactionsRules(keys map[string]string) (rules TransactionsRulesConfig
 	rules = make(TransactionsRulesConfig)
 
 	for key := range keys {
-		// rules[key] = viper.GetStringMapString(fmt.Sprintf("transactions_rules.%s", key))
 		rules[key] = getTransactionRule(viper.GetStringMapString(fmt.Sprintf("transactions_rules.%s", key)))
 	}
 
@@ -151,22 +215,13 @@ func getTransactionRule(rule map[string]string) TransactionRule {
 }
 
 // parseCsvRecord ...
-// TODO: add parameter to provide the template to use
-func parseCsvRecord(record []string, config Config) {
-	// TODO: move this template to package level var and allow override
-	const recordTemplate = `{{.Date}} * "{{.Payee}}" "{{.Description}}"
-  ; {{ .Raw }}
-  {{.AccountOut}}  {{.Currency}} {{.AmountOut}}
-  {{.AccountIn}}   {{.Currency}} {{.AmountIn}}
-
-`
-
+func parseCsvRecord(record []string, config Config, tplString string, output io.Writer) {
 	recordType := formatRecord(record, config)
 
 	// Create a new template and parse the letter into it.
-	t := template.Must(template.New("transaction").Parse(recordTemplate))
+	t := template.Must(template.New("transaction").Parse(tplString))
 
-	err := t.Execute(os.Stdout, recordType)
+	err := t.Execute(output, recordType)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"error": err,
@@ -187,7 +242,7 @@ func formatRecord(record []string, config Config) Record {
 		}).Warn("error parsing date")
 	}
 
-	date = fmt.Sprintf(t.Format(config.Csv.DateLayoutOut))
+	date = fmt.Sprint(t.Format(config.Csv.DateLayoutOut))
 
 	payee = record[config.Csv.Payee]
 	currency = config.Csv.Currency
@@ -280,12 +335,8 @@ func checkRule(expression, str string) bool {
 		"match":      match,
 	}).Trace("checked rule")
 
-	if match != "" {
-		return true
-	}
-
-	// default
-	return false
+	// Return bool indicating if match was not empty
+	return match != ""
 }
 
 // formatAmount ...
