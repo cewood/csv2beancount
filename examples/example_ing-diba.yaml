@@ -1,0 +1,19 @@
+csv:
+  amount_in: 7
+  amount_out: 7
+  currency: "EUR"
+  date: 0
+  date_layout_in: "02.01.2006"
+  date_layout_out: "2006-01-02"
+  default_account: "Expenses:Unknown"
+  description: 4
+  fields: 0
+  payee: 2
+  processing_account: "Assets:Unknown"
+  separator: ;
+  skip: 11
+transactions_rules:
+  ACME:
+    match_payee: "Acme Corp GmbH"
+    set_account: "Income:Salary:AcmeCorp"
+    set_comment: "Salary from Acme Corp GmbH"
