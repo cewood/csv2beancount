@@ -1,14 +1,15 @@
-CGO_ENABLED=1
-VERSION=development
-COMMIT=$(shell git rev-parse --short HEAD)
+CGO_ENABLED  = 0
+GIT_REVISION = $(or $(shell printenv GIT_REVISION), $(shell git describe --match= --always --abbrev=7 --dirty))
+VERSION      = snapshot
+
 
 
 .dockerimage: Dockerfile
 	docker build -t csv2beancount-builder .
 	touch .dockerimage
 
-.PHONY: docker-go-%
-docker-go-%: .dockerimage
+.PHONY: docker-do-%
+docker-do-%: .dockerimage
 	docker run \
 	  --rm \
 	  -it \
@@ -25,7 +26,7 @@ build:
 	  build
 
 .PHONY: build-docker
-build-docker: docker-go-build
+build-docker: docker-do-build
 
 .PHONY: test
 test:
@@ -36,18 +37,44 @@ test:
 	  github.com/cewood/csv2beancount/...
 
 .PHONY: test-docker
-test-docker: docker-go-test
+test-docker: docker-do-test
 
 .PHONY: reportcard
 reportcard:
 	goreportcard-cli -v
 
 .PHONY: reportcard-docker
-reportcard-docker: docker-go-reportcard
+reportcard-docker: docker-do-reportcard
 
 .PHONY: lint
 lint:
 	golangci-lint run --verbose
 
 .PHONY: lint-docker
-lint-docker: docker-go-lint
+lint-docker: docker-do-lint
+
+.PHONY: release-snapshot
+release-snapshot:
+	CGO_ENABLED=${CGO_ENABLED} \
+	GIT_REVISION=${GIT_REVISION} \
+	VERSION=${VERSION} \
+	goreleaser \
+	  --snapshot \
+	  --skip-publish \
+	  --rm-dist
+
+.PHONY: release-snapshot-docker
+release-snapshot-docker: docker-do-release-snapshot
+
+.PHONY: release
+release:
+	CGO_ENABLED=${CGO_ENABLED} \
+	GIT_REVISION=${GIT_REVISION} \
+	GITHUB_TOKEN=${GITHUB_TOKEN} \
+	VERSION=${VERSION} \
+	goreleaser \
+	  release \
+	  --rm-dist
+
+.PHONY: release-docker
+release-docker: docker-do-release
