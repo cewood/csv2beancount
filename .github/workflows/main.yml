@@ -1,0 +1,44 @@
+name: main
+
+on:
+  push:
+    branches:
+    - "*"  # run for branches
+    tags:
+    - "*"  # run for tags
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+
+    # Run docker image build
+    - name: Build docker image
+      env:
+        DOCKER_BUILDKIT: 1
+      run: make .dockerimage
+
+    # Run build
+    - name: Run build
+      run: make build-docker
+
+    # Run test
+    - name: Run tests
+      run: make test-docker
+
+    # Run lint
+    - name: Run linting
+      run: make lint-docker
+
+    # Run reportcard
+    - name: Run reportcard
+      run: make reportcard-docker
+
+    # Make release
+    - name: Make release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: startsWith(github.ref, 'refs/tags/')
+      run: make release-docker

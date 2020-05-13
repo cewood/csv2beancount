@@ -1,0 +1,31 @@
+# This is an example goreleaser.yaml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+project_name: csv2beancount
+env:
+  - GO111MODULE=on
+before:
+  hooks:
+    - go mod download
+builds:
+- env:
+  - CGO_ENABLED={{.Env.CGO_ENABLED}}
+  ldflags:
+   - -s -w -X "github.com/cewood/csv2beancount/cmd.Version={{.Env.VERSION}}"
+   - -s -w -X "github.com/cewood/csv2beancount/cmd.Commit={{.Env.GIT_REVISION}}"
+archives:
+- replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    386: i386
+    amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'
