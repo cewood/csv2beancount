@@ -1,6 +1,7 @@
-CGO_ENABLED  = 0
-GIT_REVISION = $(or $(shell printenv GIT_REVISION), $(shell git describe --match= --always --abbrev=7 --dirty))
-VERSION      = snapshot
+CGO_ENABLED        = 0
+DOCKER_INTERACTIVE = $(if $(shell printenv GITHUB_ACTIONS),-t,-it)
+GIT_REVISION       = $(or $(shell printenv GIT_REVISION), $(shell git describe --match= --always --abbrev=7 --dirty))
+VERSION            = snapshot
 
 
 
@@ -12,7 +13,7 @@ VERSION      = snapshot
 docker-do-%: .dockerimage
 	docker run \
 	  --rm \
-	  -it \
+	  ${DOCKER_INTERACTIVE} \
 	  -e CGO_ENABLED=0 \
 	  -v ${PWD}:/code \
 	  -w /code \
