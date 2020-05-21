@@ -8,7 +8,7 @@ on:
     - "*"  # run for tags
 
 jobs:
-  deploy:
+  default:
     runs-on: ubuntu-latest
 
     steps:
