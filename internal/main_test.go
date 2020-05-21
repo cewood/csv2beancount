@@ -277,8 +277,8 @@ func TestParseCsvRecord(t *testing.T) {
 			},
 			`2019-04-24 * "VISA RYANAIR" "NR8123456015 DUBLIN IE KAUFUMSATZ 18.04 223655 ARN74463669123456099978837"
   ; []string{"24.04.2019", "29.04.2019", "VISA RYANAIR", "Lastschrift", "NR8123456015 DUBLIN IE KAUFUMSATZ 18.04 223655 ARN74463669123456099978837", "6.823,05", "EUR", "-16,00", "EUR"}
-  Assets:Unknown  EUR -16.00
-  Expenses:Unknown   EUR 16.00
+  Assets:Unknown  -16.00 EUR
+  Expenses:Unknown   16.00 EUR
 
 `,
 		},
@@ -297,8 +297,8 @@ func TestParseCsvRecord(t *testing.T) {
 			},
 			`2019-04-26 * "Acme Corp GmbH" "LOHN / GEHALT 04/19"
   ; []string{"26.04.2019", "26.04.2019", "Acme Corp GmbH", "Gehalt/Rente", "LOHN / GEHALT 04/19", "12.604,42", "EUR", "3.784,22", "EUR"}
-  Expenses:Unknown  EUR -3784.22
-  Assets:Unknown   EUR 3784.22
+  Expenses:Unknown  -3784.22 EUR
+  Assets:Unknown   3784.22 EUR
 
 `,
 		},
