@@ -64,8 +64,8 @@ type Record struct {
 }
 
 // RecordTemplate is the default template for formatting records
-const RecordTemplate = `{{.Date}} * "{{.Payee}}" "{{.Description}}"
-  ; {{ .Raw }}
+const RecordTemplate = `;; {{ .Raw }}
+{{.Date}} * {{printf "%q" .Payee}} {{printf "%q" .Description}}
   {{.AccountOut}}  {{.AmountOut}} {{.Currency}}
   {{.AccountIn}}   {{.AmountIn}} {{.Currency}}
 
