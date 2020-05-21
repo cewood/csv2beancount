@@ -4,6 +4,16 @@ GIT_REVISION       = $(or $(shell printenv GIT_REVISION), $(shell git describe -
 VERSION            = snapshot
 
 
+.PHONY: all-docker
+all-docker: docker-do-all
+
+.PHONY: all
+all:
+	make build \
+	  && make test \
+	  && make lint \
+	  && make reportcard \
+	  && make release-snapshot
 
 .dockerimage: Dockerfile
 	docker build -t csv2beancount-builder .
