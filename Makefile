@@ -4,6 +4,7 @@ CGO_ENABLED        = 1
 CODECOV_TOKEN      = $(or $(shell printenv CODECOV_TOKEN),"UNSET")
 CREATED            = $(or $(shell printenv CREATED),$(shell date --rfc-3339=seconds))
 DOCKER_INTERACTIVE = $(if $(shell printenv GITHUB_ACTIONS),-t,-it)
+GITHUB_TOKEN       = $(or $(shell printenv GITHUB_TOKEN),"UNSET")
 GIT_REVISION       = $(or $(shell printenv GIT_REVISION), $(shell git describe --match= --always --abbrev=7 --dirty))
 IMAGE              = $(or $(shell printenv IMAGE),cewood/csv2beancount)
 IMAGE_TAG          = $(or $(shell printenv IMAGE_TAG),${TAG_REVISION})
@@ -37,6 +38,7 @@ docker-do-%: .dockerimage-builder
 	  ${DOCKER_INTERACTIVE} \
 	  -e CGO_ENABLED=${CGO_ENABLED} \
 	  -e CODECOV_TOKEN=${CODECOV_TOKEN} \
+	  -e GITHUB_TOKEN=${GITHUB_TOKEN} \
 	  -v ${PWD}:/workdir \
 	  -w /workdir \
 	  csv2beancount-builder \
