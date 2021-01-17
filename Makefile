@@ -109,8 +109,9 @@ release:
 release-docker: docker-do-release
 
 .PHONY: codecov-upload
+codecov-upload: SHELL := /bin/bash
 codecov-upload:
-	bash <(curl -s https://codecov.io/bash) -v || echo 'Codecov failed to upload'
+	bash <(curl -s https://codecov.io/bash) || echo 'Codecov failed to upload'
 
 .PHONY: load
 load:
