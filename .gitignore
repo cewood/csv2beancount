@@ -1,3 +1,5 @@
 .dockerimage
+.dockerimage-builder
 dist
 csv2beancount
+coverage.txt

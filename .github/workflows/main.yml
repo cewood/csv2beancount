@@ -14,11 +14,19 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    # Run docker image build
-    - name: Build docker image
+    # Set up Qemu for Buildx
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+
+    # Set up Buildx for Docker
+    - name: Set up Buildx for Docker
+      uses: docker/setup-buildx-action@v1
+
+    # Make docker builder image
+    - name: Build docker builder image
       env:
         DOCKER_BUILDKIT: 1
-      run: make .dockerimage
+      run: make .dockerimage-builder
 
     # Run build
     - name: Run build
@@ -26,7 +34,9 @@ jobs:
 
     # Run test
     - name: Run tests
-      run: make test-docker
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: make test-ci-docker
 
     # Run lint
     - name: Run linting
@@ -42,3 +52,18 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       if: startsWith(github.ref, 'refs/tags/')
       run: make release-docker
+
+    # Login to Docker Hub
+    - name: Login to Docker Hub
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # Make docker images
+    - name: Make docker images
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: startsWith(github.ref, 'refs/tags/')
+      run: make build-and-push-dockerimages

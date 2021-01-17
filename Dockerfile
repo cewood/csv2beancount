@@ -1,19 +1,19 @@
-FROM golang:1.14.2 AS base
-FROM goreleaser/goreleaser:v0.133 AS goreleaser
-FROM golangci/golangci-lint:v1.26.0 AS golangci-lint
+FROM scratch
 
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETPLATFORM
+ARG TARGETVARIANT
 
-FROM base AS build
+COPY dist/csv2beancount_${TARGETOS}_${TARGETARCH}/csv2beancount /
 
-RUN apt-get update && apt-get install -y \
-  make \
-  gcc \
-  && rm -rf /var/lib/apt/lists/*
+ARG CREATED
+ARG REVISION=HEAD
 
-COPY --from=goreleaser /bin/goreleaser /bin/
-COPY --from=golangci-lint /usr/bin/golangci-lint /bin/
-
-RUN GO111MODULE=on go get github.com/gojp/goreportcard/cmd/goreportcard-cli@59167b5 \
-  && mv /go/bin/goreportcard-cli /bin/
-
-RUN wget -qO- https://github.com/alecthomas/gometalinter/releases/download/v3.0.0/gometalinter-3.0.0-linux-amd64.tar.gz | tar -xzf - --strip-components=1 -C /bin
+LABEL org.opencontainers.image.authors="https://github.com/cewood" \
+      org.opencontainers.image.created="${CREATED}" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.revision="${REVISION}" \
+      org.opencontainers.image.source="https://github.com/cewood/csv2beancount/tree/${REVISION}" \
+      org.opencontainers.image.title="cewood/csv2beancount" \
+      org.opencontainers.image.url="https://github.com/cewood/csv2beancount"

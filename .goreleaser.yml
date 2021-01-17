@@ -12,6 +12,13 @@ builds:
   ldflags:
    - -s -w -X "github.com/cewood/csv2beancount/cmd.Version={{.Env.VERSION}}"
    - -s -w -X "github.com/cewood/csv2beancount/cmd.Commit={{.Env.GIT_REVISION}}"
+  goos:
+    - darwin
+    - linux
+    - windows
+  goarch:
+    - amd64
+    - arm64
 archives:
 - replacements:
     darwin: Darwin
