@@ -2,6 +2,8 @@
 
 A small utility to convert your csv file of bank transactions to beancount format.
 
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/cewood/csv2beancount/main) [![Go Report Card](https://goreportcard.com/badge/github.com/cewood/csv2beancount)](https://goreportcard.com/report/github.com/cewood/csv2beancount) ![Codecov](https://img.shields.io/codecov/c/github/cewood/csv2beancount)
+
 
 ## Example
 
