@@ -1,4 +1,6 @@
 # csv2beancount
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fcewood%2Fcsv2beancount.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fcewood%2Fcsv2beancount?ref=badge_shield)
+
 
 A small utility to convert your csv file of bank transactions to beancount format.
 
@@ -136,3 +138,7 @@ The motivation for creating another implementation was to add the following func
 
  1. Stricter date formatting
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fcewood%2Fcsv2beancount.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fcewood%2Fcsv2beancount?ref=badge_large)
